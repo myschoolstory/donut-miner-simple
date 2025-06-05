@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donut Miner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #8B4513, #D2691E, #F4A460);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 3em;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            min-width: 120px;
+            margin: 5px;
+        }
+
+        .game-area {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .mine-container {
+            flex: 2;
+            min-width: 300px;
+        }
+
+        .mine {
+            background: #8B4513;
+            border: 3px solid #654321;
+            border-radius: 15px;
+            padding: 20px;
+            height: 600px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .mine-layer {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .layer-0 { background: #D2B48C; }
+        .layer-1 { background: #CD853F; }
+        .layer-2 { background: #A0522D; }
+        .layer-3 { background: #8B4513; }
+        .layer-4 { background: #654321; }
+        .layer-5 { background: #4A2C2A; }
+
+        .mine-block {
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            position: relative;
+        }
+
+        .mine-block:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .mine-block.dug {
+            background: rgba(0, 0, 0, 0.3);
+            cursor: default;
+            transform: none;
+        }
+
+        .mine-block.dug:hover {
+            transform: none;
+        }
+
+        .shop {
+            flex: 1;
+            min-width: 250px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .shop h3 {
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .upgrade {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .upgrade:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #FFD700;
+            transform: translateY(-2px);
+        }
+
+        .upgrade.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .upgrade.disabled:hover {
+            transform: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .donut-counter {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .donut-counter h3 {
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .donut-type {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .floating-donut {
+            position: absolute;
+            pointer-events: none;
+            font-size: 2em;
+            animation: floatUp 2s ease-out forwards;
+            z-index: 1000;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px);
+            }
+        }
+
+        .depth-indicator {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            color: white;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .game-area {
+                flex-direction: column;
+            }
+            
+            .mine {
+                height: 400px;
+            }
+            
+            .title {
+                font-size: 2em;
+            }
+            
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1 class="title">🍩 Donut Miner 🍩</h1>
+            <div class="stats">
+                <div class="stat">
+                    <div>Score</div>
+                    <div id="score">0</div>
+                </div>
+                <div class="stat">
+                    <div>Depth</div>
+                    <div id="depth">0m</div>
+                </div>
+                <div class="stat">
+                    <div>Donuts/Click</div>
+                    <div id="power">1</div>
+                </div>
+                <div class="stat">
+                    <div>Energy</div>
+                    <div id="energy">100/100</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="mine-container">
+                <div class="mine" id="mine">
+                    <!-- Mine layers will be generated here -->
+                </div>
+            </div>
+
+            <div class="shop">
+                <h3>🛒 Upgrade Shop</h3>
+                <div class="upgrade" id="powerUpgrade">
+                    <div><strong>Better Pickaxe</strong></div>
+                    <div>+1 Donut per click</div>
+                    <div>Cost: <span id="powerCost">10</span> 🍩</div>
+                </div>
+                <div class="upgrade" id="energyUpgrade">
+                    <div><strong>Energy Drink</strong></div>
+                    <div>+20 Max Energy</div>
+                    <div>Cost: <span id="energyCost">25</span> 🍩</div>
+                </div>
+                <div class="upgrade" id="regenUpgrade">
+                    <div><strong>Quick Rest</strong></div>
+                    <div>Faster energy regen</div>
+                    <div>Cost: <span id="regenCost">50</span> 🍩</div>
+                </div>
+                <div class="upgrade" id="luckUpgrade">
+                    <div><strong>Lucky Charm</strong></div>
+                    <div>Better donut chances</div>
+                    <div>Cost: <span id="luckCost">100</span> 🍩</div>
+                </div>
+
+                <div class="donut-counter">
+                    <h3>🍩 Donut Collection</h3>
+                    <div class="donut-type">
+                        <span>🍩 Plain Donuts:</span>
+                        <span id="plainCount">0</span>
+                    </div>
+                    <div class="donut-type">
+                        <span>🍫 Chocolate:</span>
+                        <span id="chocolateCount">0</span>
+                    </div>
+                    <div class="donut-type">
+                        <span>🌈 Rainbow:</span>
+                        <span id="rainbowCount">0</span>
+                    </div>
+                    <div class="donut-type">
+                        <span>✨ Golden:</span>
+                        <span id="goldenCount">0</span>
+                    </div>
+                    <div class="donut-type">
+                        <span>💎 Diamond:</span>
+                        <span id="diamondCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DonutMiner {
+            constructor() {
+                this.score = 0;
+                this.depth = 0;
+                this.power = 1;
+                this.energy = 100;
+                this.maxEnergy = 100;
+                this.regenRate = 1;
+                this.luck = 1;
+                
+                this.donuts = {
+                    plain: 0,
+                    chocolate: 0,
+                    rainbow: 0,
+                    golden: 0,
+                    diamond: 0
+                };
+                
+                this.costs = {
+                    power: 10,
+                    energy: 25,
+                    regen: 50,
+                    luck: 100
+                };
+                
+                this.mine = [];
+                this.currentLayer = 0;
+                
+                this.initGame();
+                this.startEnergyRegen();
+            }
+            
+            initGame() {
+                this.generateMine();
+                this.updateDisplay();
+                this.bindEvents();
+            }
+            
+            generateMine() {
+                const mineElement = document.getElementById('mine');
+                mineElement.innerHTML = '';
+                
+                for (let layer = 0; layer < 20; layer++) {
+                    const layerDiv = document.createElement('div');
+                    layerDiv.className = `mine-layer layer-${Math.min(layer, 5)}`;
+                    layerDiv.innerHTML = `<div class="depth-indicator">Depth: ${layer * 5}m</div>`;
+                    
+                    const layerData = [];
+                    for (let i = 0; i < 64; i++) {
+                        const block = document.createElement('div');
+                        block.className = 'mine-block';
+                        block.dataset.layer = layer;
+                        block.dataset.index = i;
+                        
+                        const donutType = this.generateDonutType(layer);
+                        if (donutType) {
+                            block.dataset.donut = donutType.type;
+                            block.textContent = donutType.emoji;
+                        }
+                        
+                        block.addEventListener('click', (e) => this.mineBlock(e));
+                        layerDiv.appendChild(block);
+                        layerData.push({ dug: false, donut: donutType });
+                    }
+                    
+                    this.mine.push(layerData);
+                    mineElement.appendChild(layerDiv);
+                }
+            }
+            
+            generateDonutType(layer) {
+                const rand = Math.random() * this.luck;
+                const depth = layer * 5;
+                
+                if (rand < 0.3 + (depth * 0.01)) {
+                    if (depth > 80 && rand < 0.05) return { type: 'diamond', emoji: '💎', value: 50 };
+                    if (depth > 60 && rand < 0.1) return { type: 'golden', emoji: '✨', value: 25 };
+                    if (depth > 40 && rand < 0.15) return { type: 'rainbow', emoji: '🌈', value: 10 };
+                    if (depth > 20 && rand < 0.2) return { type: 'chocolate', emoji: '🍫', value: 5 };
+                    if (rand < 0.25) return { type: 'plain', emoji: '🍩', value: 1 };
+                }
+                
+                return null;
+            }
+            
+            mineBlock(event) {
+                const block = event.target;
+                
+                if (block.classList.contains('dug') || this.energy < 1) {
+                    return;
+                }
+                
+                this.energy -= 1;
+                block.classList.add('dug');
+                
+                const layer = parseInt(block.dataset.layer);
+                const index = parseInt(block.dataset.index);
+                const donutType = block.dataset.donut;
+                
+                if (donutType) {
+                    const donutData = this.getDonutData(donutType);
+                    const donutsFound = this.power;
+                    
+                    this.donuts[donutType] += donutsFound;
+                    this.score += donutData.value * donutsFound;
+                    
+                    this.createFloatingDonut(block, donutData.emoji, donutsFound);
+                }
+                
+                this.depth = Math.max(this.depth, layer * 5);
+                this.updateDisplay();
+            }
+            
+            getDonutData(type) {
+                const donutTypes = {
+                    plain: { emoji: '🍩', value: 1 },
+                    chocolate: { emoji: '🍫', value: 5 },
+                    rainbow: { emoji: '🌈', value: 10 },
+                    golden: { emoji: '✨', value: 25 },
+                    diamond: { emoji: '💎', value: 50 }
+                };
+                return donutTypes[type];
+            }
+            
+            createFloatingDonut(block, emoji, count) {
+                const floating = document.createElement('div');
+                floating.className = 'floating-donut';
+                floating.textContent = `${emoji} +${count}`;
+                
+                const rect = block.getBoundingClientRect();
+                floating.style.left = rect.left + 'px';
+                floating.style.top = rect.top + 'px';
+                floating.style.position = 'fixed';
+                
+                document.body.appendChild(floating);
+                
+                setTimeout(() => {
+                    floating.remove();
+                }, 2000);
+            }
+            
+            buyUpgrade(type) {
+                const cost = this.costs[type];
+                
+                if (this.score < cost) return false;
+                
+                this.score -= cost;
+                
+                switch(type) {
+                    case 'power':
+                        this.power += 1;
+                        this.costs.power = Math.floor(this.costs.power * 1.5);
+                        break;
+                    case 'energy':
+                        this.maxEnergy += 20;
+                        this.energy = Math.min(this.energy + 20, this.maxEnergy);
+                        this.costs.energy = Math.floor(this.costs.energy * 1.5);
+                        break;
+                    case 'regen':
+                        this.regenRate += 0.5;
+                        this.costs.regen = Math.floor(this.costs.regen * 1.5);
+                        break;
+                    case 'luck':
+                        this.luck += 0.2;
+                        this.costs.luck = Math.floor(this.costs.luck * 1.5);
+                        break;
+                }
+                
+                this.updateDisplay();
+                return true;
+            }
+            
+            startEnergyRegen() {
+                setInterval(() => {
+                    if (this.energy < this.maxEnergy) {
+                        this.energy = Math.min(this.energy + this.regenRate, this.maxEnergy);
+                        this.updateDisplay();
+                    }
+                }, 1000);
+            }
+            
+            updateDisplay() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('depth').textContent = this.depth + 'm';
+                document.getElementById('power').textContent = this.power;
+                document.getElementById('energy').textContent = `${Math.floor(this.energy)}/${this.maxEnergy}`;
+                
+                // Update donut counts
+                document.getElementById('plainCount').textContent = this.donuts.plain;
+                document.getElementById('chocolateCount').textContent = this.donuts.chocolate;
+                document.getElementById('rainbowCount').textContent = this.donuts.rainbow;
+                document.getElementById('goldenCount').textContent = this.donuts.golden;
+                document.getElementById('diamondCount').textContent = this.donuts.diamond;
+                
+                // Update upgrade costs
+                document.getElementById('powerCost').textContent = this.costs.power;
+                document.getElementById('energyCost').textContent = this.costs.energy;
+                document.getElementById('regenCost').textContent = this.costs.regen;
+                document.getElementById('luckCost').textContent = this.costs.luck;
+                
+                // Update upgrade availability
+                ['power', 'energy', 'regen', 'luck'].forEach(type => {
+                    const upgrade = document.getElementById(type + 'Upgrade');
+                    if (this.score < this.costs[type]) {
+                        upgrade.classList.add('disabled');
+                    } else {
+                        upgrade.classList.remove('disabled');
+                    }
+                });
+            }
+            
+            bindEvents() {
+                document.getElementById('powerUpgrade').addEventListener('click', () => this.buyUpgrade('power'));
+                document.getElementById('energyUpgrade').addEventListener('click', () => this.buyUpgrade('energy'));
+                document.getElementById('regenUpgrade').addEventListener('click', () => this.buyUpgrade('regen'));
+                document.getElementById('luckUpgrade').addEventListener('click', () => this.buyUpgrade('luck'));
+            }
+        }
+        
+        // Start the game
+        const game = new DonutMiner();
+    </script>
+</body>
+</html>
